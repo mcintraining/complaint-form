@@ -15,7 +15,7 @@
     width:100%; padding:10px; margin-top:5px; border:1px solid #ccc; border-radius:6px; font-size:14px; box-sizing:border-box;
   }
   textarea { resize:vertical; min-height:100px; }
-  .hint { font-size:12px; color:#666; margin-top:4px; }
+  .hint { font-size:12px; color:#666; margin-top:6px; }
   button { margin-top:25px; background:#1a4d8f; color:#fff; padding:12px 25px; border:none; border-radius:6px; font-size:16px; cursor:pointer; }
   button:disabled { background:#999; }
   #msg { margin-top:15px; padding:12px; border-radius:6px; display:none; }
@@ -23,6 +23,13 @@
   #msg.error { background:#fdecea; color:#c62828; display:block; }
   #otherTypeBox { display:none; }
   .link-to-status { display:block; text-align:center; margin-top:20px; color:#1a4d8f; text-decoration:none; font-size:14px; }
+
+  /* ===== ส่วนของช่องแนบไฟล์ 3 ช่อง ===== */
+  .file-slot { display:flex; align-items:center; gap:10px; margin-top:8px; padding:10px; border:1px dashed #ccc; border-radius:6px; }
+  .file-slot input[type=file] { flex:1; font-size:13px; margin:0; padding:0; }
+  .file-slot-label { font-size:13px; color:#888; min-width:60px; }
+  .file-name { font-size:12px; color:#1a4d8f; margin-top:4px; }
+  .file-error { font-size:12px; color:#c62828; margin-top:4px; }
 </style>
 </head>
 <body>
@@ -70,9 +77,28 @@
     <label class="required">รายละเอียดเรื่องที่ร้องเรียน</label>
     <textarea id="details" required></textarea>
 
-    <label>แนบเอกสาร/รูปภาพประกอบ (ไม่บังคับ)</label>
-    <input type="file" id="attachments" multiple accept="image/*,.pdf,.doc,.docx">
-    <div class="hint">แนบได้สูงสุด 3 ไฟล์ ขนาดไม่เกิน 8MB ต่อไฟล์</div>
+    <label>แนบเอกสาร/รูปภาพประกอบ (ไม่บังคับ สูงสุด 3 ไฟล์ ไฟล์ละไม่เกิน 8MB)</label>
+
+    <div class="file-slot">
+      <span class="file-slot-label">ไฟล์ที่ 1</span>
+      <input type="file" id="file1" accept="image/*,.pdf,.doc,.docx">
+    </div>
+    <div class="file-name" id="file1Name"></div>
+    <div class="file-error" id="file1Error"></div>
+
+    <div class="file-slot">
+      <span class="file-slot-label">ไฟล์ที่ 2</span>
+      <input type="file" id="file2" accept="image/*,.pdf,.doc,.docx">
+    </div>
+    <div class="file-name" id="file2Name"></div>
+    <div class="file-error" id="file2Error"></div>
+
+    <div class="file-slot">
+      <span class="file-slot-label">ไฟล์ที่ 3</span>
+      <input type="file" id="file3" accept="image/*,.pdf,.doc,.docx">
+    </div>
+    <div class="file-name" id="file3Name"></div>
+    <div class="file-error" id="file3Error"></div>
 
     <label>ข้อมูลอื่นๆ เพิ่มเติม (ไม่บังคับ)</label>
     <textarea id="additional"></textarea>
@@ -86,13 +112,34 @@
 
 <script>
 // ⚠️⚠️⚠️ แก้บรรทัดด้านล่างนี้เป็น Web App URL ของคุณ ⚠️⚠️⚠️
-const WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbyUgK7n-9DyYAz6cHgsqmf5FpgNIfr_zWPCBS3vrymDoGBhg6QV79-H8UCn9YrdORFoKA/exec'; // web app ใน app script ver. 19Aug2026
+const WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbyUgK7n-9DyYAz6cHgsqmf5FpgNIfr_zWPCBS3vrymDoGBhg6QV79-H8UCn9YrdORFoKA/exec'; // app script 19Aug2026 v.2
 
-const MAX_FILES = 3;
 const MAX_FILE_SIZE_MB = 8;
+const fileInputIds = ['file1', 'file2', 'file3'];
 
 document.getElementById('complaintType').addEventListener('change', function () {
   document.getElementById('otherTypeBox').style.display = this.value === 'อื่นๆ' ? 'block' : 'none';
+});
+
+// เช็คขนาดไฟล์และแสดงชื่อไฟล์ทันทีที่เลือก สำหรับแต่ละช่อง
+fileInputIds.forEach(function (id) {
+  document.getElementById(id).addEventListener('change', function () {
+    const nameBox = document.getElementById(id + 'Name');
+    const errorBox = document.getElementById(id + 'Error');
+    nameBox.textContent = '';
+    errorBox.textContent = '';
+
+    if (this.files.length > 0) {
+      const f = this.files;
+      const sizeMB = f.size / (1024 * 1024);
+      if (sizeMB > MAX_FILE_SIZE_MB) {
+        errorBox.textContent = '❌ ไฟล์ "' + f.name + '" มีขนาด ' + sizeMB.toFixed(1) + ' MB เกินกำหนด ' + MAX_FILE_SIZE_MB + ' MB กรุณาเลือกไฟล์อื่น';
+        this.value = ''; // ล้างไฟล์ที่เลือกไว้ทิ้ง
+      } else {
+        nameBox.textContent = '📎 ' + f.name + ' (' + sizeMB.toFixed(2) + ' MB)';
+      }
+    }
+  });
 });
 
 function fileToBase64(file) {
@@ -108,34 +155,35 @@ document.getElementById('complaintForm').addEventListener('submit', async functi
   e.preventDefault();
   const msg = document.getElementById('msg');
   const btn = document.getElementById('submitBtn');
-  msg.className = ''; msg.style.display = 'none';
 
-  const files = document.getElementById('attachments').files;
-  if (files.length > MAX_FILES) {
-    msg.className = 'error'; msg.textContent = 'แนบไฟล์ได้ไม่เกิน ' + MAX_FILES + ' ไฟล์';
-    return;
-  }
-  for (const f of files) {
-    if (f.size > MAX_FILE_SIZE_MB * 1024 * 1024) {
-      msg.className = 'error'; msg.textContent = 'ไฟล์ ' + f.name + ' มีขนาดเกิน ' + MAX_FILE_SIZE_MB + ' MB';
-      return;
-    }
-  }
+  // ⚠️ แก้บั๊กจากเดิม: ไม่ตั้ง inline style display:none แล้ว ให้ล้างแค่ class พอ
+  msg.className = '';
+  msg.textContent = '';
 
   let complaintType = document.getElementById('complaintType').value;
   if (complaintType === 'อื่นๆ') {
     const other = document.getElementById('otherType').value.trim();
-    if (!other) { msg.className='error'; msg.textContent='กรุณาระบุประเภทการร้องเรียน'; return; }
+    if (!other) {
+      msg.className = 'error';
+      msg.textContent = 'กรุณาระบุประเภทการร้องเรียน';
+      return;
+    }
     complaintType = 'อื่นๆ: ' + other;
   }
 
-  btn.disabled = true; btn.textContent = 'กำลังส่ง...';
+  btn.disabled = true;
+  btn.textContent = 'กำลังส่ง...';
 
   try {
+    // รวบรวมไฟล์จากทั้ง 3 ช่อง (เฉพาะช่องที่มีไฟล์)
     const fileData = [];
-    for (const f of files) {
-      const base64 = await fileToBase64(f);
-      fileData.push({ name: f.name, mimeType: f.type, base64: base64 });
+    for (const id of fileInputIds) {
+      const input = document.getElementById(id);
+      if (input.files.length > 0) {
+        const f = input.files;
+        const base64 = await fileToBase64(f);
+        fileData.push({ name: f.name, mimeType: f.type, base64: base64 });
+      }
     }
 
     const payload = {
@@ -154,13 +202,13 @@ document.getElementById('complaintForm').addEventListener('submit', async functi
       method: 'POST',
       body: JSON.stringify(payload)
     });
+
     const result = await res.json();
 
     if (result.status === 'success') {
-      msg.className = 'success';
-      msg.innerHTML = '✅ ส่งเรื่องร้องเรียนสำเร็จ! รหัสเรื่องของท่านคือ <strong>' + result.complaintId + '</strong><br>ระบบได้ส่งอีเมลยืนยันไปที่อีเมลของท่านแล้ว';
-      document.getElementById('complaintForm').reset();
-      document.getElementById('otherTypeBox').style.display = 'none';
+      // เก็บ complaintId ไว้ใน sessionStorage แล้ว redirect ไปหน้า thank-you
+      sessionStorage.setItem('lastComplaintId', result.complaintId);
+      window.location.href = 'thankyou.html';
     } else {
       msg.className = 'error';
       msg.textContent = '❌ เกิดข้อผิดพลาด: ' + result.message;
@@ -169,7 +217,8 @@ document.getElementById('complaintForm').addEventListener('submit', async functi
     msg.className = 'error';
     msg.textContent = '❌ ไม่สามารถส่งข้อมูลได้: ' + err.message;
   } finally {
-    btn.disabled = false; btn.textContent = 'ส่งเรื่องร้องเรียน';
+    btn.disabled = false;
+    btn.textContent = 'ส่งเรื่องร้องเรียน';
   }
 });
 </script>
