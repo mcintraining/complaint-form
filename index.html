@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>แบบฟอร์มร้องเรียน คณะวิทยาศาสตร์</title>
+<style>
+  body { font-family: 'Sarabun', 'Segoe UI', sans-serif; background:#f4f6f8; margin:0; padding:20px; }
+  .container { max-width:700px; margin:0 auto; background:#fff; padding:30px; border-radius:10px; box-shadow:0 2px 8px rgba(0,0,0,0.1); }
+  h1 { color:#1a4d8f; font-size:22px; }
+  .pdpa { background:#fff8e1; border-left:4px solid #f0ad4e; padding:12px 15px; font-size:14px; margin-bottom:20px; border-radius:4px; }
+  label { display:block; margin-top:15px; font-weight:600; font-size:14px; }
+  .required::after { content:" *"; color:red; }
+  input[type=text], input[type=email], input[type=tel], select, textarea {
+    width:100%; padding:10px; margin-top:5px; border:1px solid #ccc; border-radius:6px; font-size:14px; box-sizing:border-box;
+  }
+  textarea { resize:vertical; min-height:100px; }
+  .hint { font-size:12px; color:#666; margin-top:4px; }
+  button { margin-top:25px; background:#1a4d8f; color:#fff; padding:12px 25px; border:none; border-radius:6px; font-size:16px; cursor:pointer; }
+  button:disabled { background:#999; }
+  #msg { margin-top:15px; padding:12px; border-radius:6px; display:none; }
+  #msg.success { background:#e6f4ea; color:#1e7e34; display:block; }
+  #msg.error { background:#fdecea; color:#c62828; display:block; }
+  #otherTypeBox { display:none; }
+  .link-to-status { display:block; text-align:center; margin-top:20px; color:#1a4d8f; text-decoration:none; font-size:14px; }
+</style>
+</head>
+<body>
+<div class="container">
+  <h1>📋 แบบฟอร์มร้องเรียน คณะวิทยาศาสตร์</h1>
+
+  <div class="pdpa">
+    🔒 <strong>ประกาศ PDPA:</strong> ข้อมูลส่วนบุคคลที่ท่านให้ไว้ในแบบฟอร์มนี้จะถูกใช้เพื่อการติดต่อกลับและดำเนินการเกี่ยวกับเรื่องร้องเรียนเท่านั้น
+    ทางคณะฯ จะไม่เปิดเผยข้อมูลของท่านต่อบุคคลภายนอกโดยไม่ได้รับอนุญาต และจะเก็บรักษาข้อมูลไว้ตามระยะเวลาที่กฎหมายกำหนด
+  </div>
+
+  <form id="complaintForm">
+    <label class="required">ชื่อ-นามสกุล</label>
+    <input type="text" id="fullname" required>
+
+    <label class="required">อีเมล</label>
+    <input type="email" id="email" required>
+
+    <label class="required">เบอร์โทรศัพท์</label>
+    <input type="tel" id="phone" required pattern="[0-9]{9,10}" placeholder="เช่น 0812345678">
+
+    <label class="required">สถานะผู้แจ้ง</label>
+    <select id="reporterStatus" required>
+      <option value="">-- เลือก --</option>
+      <option value="นิสิตคณะวิทยาศาสตร์">นิสิตคณะวิทยาศาสตร์</option>
+      <option value="บุคลากรคณะวิทยาศาสตร์ (สายวิชาการ/สายปฏิบัติการ)">บุคลากรคณะวิทยาศาสตร์ (สายวิชาการ/สายปฏิบัติการ)</option>
+      <option value="บุคคลภายนอก/บุคคลทั่วไป">บุคคลภายนอก/บุคคลทั่วไป</option>
+    </select>
+
+    <label class="required">ประเภทการร้องเรียน</label>
+    <select id="complaintType" required>
+      <option value="">-- เลือก --</option>
+      <option value="การเรียนการสอน">การเรียนการสอน</option>
+      <option value="กิจกรรม">กิจกรรม</option>
+      <option value="การบริการ">การบริการ</option>
+      <option value="อื่นๆ">อื่นๆ (ระบุ)</option>
+    </select>
+    <div id="otherTypeBox">
+      <input type="text" id="otherType" placeholder="ระบุประเภทการร้องเรียน">
+    </div>
+
+    <label class="required">หัวข้อเรื่องร้องเรียน</label>
+    <input type="text" id="subject" required>
+
+    <label class="required">รายละเอียดเรื่องที่ร้องเรียน</label>
+    <textarea id="details" required></textarea>
+
+    <label>แนบเอกสาร/รูปภาพประกอบ (ไม่บังคับ)</label>
+    <input type="file" id="attachments" multiple accept="image/*,.pdf,.doc,.docx">
+    <div class="hint">แนบได้สูงสุด 3 ไฟล์ ขนาดไม่เกิน 8MB ต่อไฟล์</div>
+
+    <label>ข้อมูลอื่นๆ เพิ่มเติม (ไม่บังคับ)</label>
+    <textarea id="additional"></textarea>
+
+    <button type="submit" id="submitBtn">ส่งเรื่องร้องเรียน</button>
+    <div id="msg"></div>
+  </form>
+
+  <a href="status.html" class="link-to-status">🔍 ตรวจสอบสถานะเรื่องร้องเรียน</a>
+</div>
+
+<script>
+// ⚠️⚠️⚠️ แก้บรรทัดด้านล่างนี้เป็น Web App URL ของคุณ ⚠️⚠️⚠️
+const WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbyUgK7n-9DyYAz6cHgsqmf5FpgNIfr_zWPCBS3vrymDoGBhg6QV79-H8UCn9YrdORFoKA/exec'; // web app ใน app script ver. 19Aug2026
+
+const MAX_FILES = 3;
+const MAX_FILE_SIZE_MB = 8;
+
+document.getElementById('complaintType').addEventListener('change', function () {
+  document.getElementById('otherTypeBox').style.display = this.value === 'อื่นๆ' ? 'block' : 'none';
+});
+
+function fileToBase64(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result.split(','));
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+}
+
+document.getElementById('complaintForm').addEventListener('submit', async function (e) {
+  e.preventDefault();
+  const msg = document.getElementById('msg');
+  const btn = document.getElementById('submitBtn');
+  msg.className = ''; msg.style.display = 'none';
+
+  const files = document.getElementById('attachments').files;
+  if (files.length > MAX_FILES) {
+    msg.className = 'error'; msg.textContent = 'แนบไฟล์ได้ไม่เกิน ' + MAX_FILES + ' ไฟล์';
+    return;
+  }
+  for (const f of files) {
+    if (f.size > MAX_FILE_SIZE_MB * 1024 * 1024) {
+      msg.className = 'error'; msg.textContent = 'ไฟล์ ' + f.name + ' มีขนาดเกิน ' + MAX_FILE_SIZE_MB + ' MB';
+      return;
+    }
+  }
+
+  let complaintType = document.getElementById('complaintType').value;
+  if (complaintType === 'อื่นๆ') {
+    const other = document.getElementById('otherType').value.trim();
+    if (!other) { msg.className='error'; msg.textContent='กรุณาระบุประเภทการร้องเรียน'; return; }
+    complaintType = 'อื่นๆ: ' + other;
+  }
+
+  btn.disabled = true; btn.textContent = 'กำลังส่ง...';
+
+  try {
+    const fileData = [];
+    for (const f of files) {
+      const base64 = await fileToBase64(f);
+      fileData.push({ name: f.name, mimeType: f.type, base64: base64 });
+    }
+
+    const payload = {
+      fullname: document.getElementById('fullname').value.trim(),
+      email: document.getElementById('email').value.trim(),
+      phone: document.getElementById('phone').value.trim(),
+      reporterStatus: document.getElementById('reporterStatus').value,
+      complaintType: complaintType,
+      subject: document.getElementById('subject').value.trim(),
+      details: document.getElementById('details').value.trim(),
+      additional: document.getElementById('additional').value.trim(),
+      files: fileData
+    };
+
+    const res = await fetch(WEB_APP_URL, {
+      method: 'POST',
+      body: JSON.stringify(payload)
+    });
+    const result = await res.json();
+
+    if (result.status === 'success') {
+      msg.className = 'success';
+      msg.innerHTML = '✅ ส่งเรื่องร้องเรียนสำเร็จ! รหัสเรื่องของท่านคือ <strong>' + result.complaintId + '</strong><br>ระบบได้ส่งอีเมลยืนยันไปที่อีเมลของท่านแล้ว';
+      document.getElementById('complaintForm').reset();
+      document.getElementById('otherTypeBox').style.display = 'none';
+    } else {
+      msg.className = 'error';
+      msg.textContent = '❌ เกิดข้อผิดพลาด: ' + result.message;
+    }
+  } catch (err) {
+    msg.className = 'error';
+    msg.textContent = '❌ ไม่สามารถส่งข้อมูลได้: ' + err.message;
+  } finally {
+    btn.disabled = false; btn.textContent = 'ส่งเรื่องร้องเรียน';
+  }
+});
+</script>
+</body>
+</html>
