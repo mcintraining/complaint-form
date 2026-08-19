@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ส่งเรื่องร้องเรียนสำเร็จ</title>
+<style>
+  body { font-family: 'Sarabun', 'Segoe UI', sans-serif; background:#f4f6f8; margin:0; padding:20px; }
+  .container { max-width:600px; margin:60px auto; background:#fff; padding:40px 30px; border-radius:10px; box-shadow:0 2px 8px rgba(0,0,0,0.1); text-align:center; }
+  .icon { font-size:60px; }
+  h1 { color:#1e7e34; font-size:24px; margin-top:10px; }
+  .id-box { background:#e6f4ea; border:2px dashed #1e7e34; border-radius:8px; padding:15px; margin:25px 0; }
+  .id-box .label { font-size:14px; color:#555; }
+  .id-box .value { font-size:28px; font-weight:700; color:#1e7e34; letter-spacing:2px; }
+  p { color:#555; font-size:14px; line-height:1.6; }
+  .btn-group { margin-top:30px; display:flex; gap:15px; justify-content:center; flex-wrap:wrap; }
+  .btn { padding:12px 24px; border-radius:6px; text-decoration:none; font-size:14px; font-weight:600; }
+  .btn-primary { background:#1a4d8f; color:#fff; }
+  .btn-secondary { background:#eee; color:#333; }
+  .empty-state { color:#999; }
+</style>
+</head>
+<body>
+<div class="container" id="content">
+  <!-- จะถูกเติมด้วย JavaScript -->
+</div>
+
+<script>
+const complaintId = sessionStorage.getItem('lastComplaintId');
+const content = document.getElementById('content');
+
+if (complaintId) {
+  content.innerHTML = `
+    <div class="icon">✅</div>
+    <h1>ส่งเรื่องร้องเรียนสำเร็จ</h1>
+    <p>ระบบได้รับข้อร้องเรียนของท่านเรียบร้อยแล้ว และได้ส่งอีเมลยืนยันไปยังอีเมลที่ท่านกรอกไว้</p>
+    <div class="id-box">
+      <div class="label">รหัสเรื่องร้องเรียนของท่านคือ</div>
+      <div class="value">${complaintId}</div>
+    </div>
+    <p>กรุณาเก็บรหัสนี้ไว้เพื่อใช้ตรวจสอบสถานะภายหลัง</p>
+    <div class="btn-group">
+      <a href="index.html" class="btn btn-secondary">📝 ส่งเรื่องใหม่</a>
+      <a href="status.html" class="btn btn-primary">🔍 ติดตามสถานะ</a>
+    </div>
+  `;
+  sessionStorage.removeItem('lastComplaintId'); // เคลียร์ทิ้งหลังแสดงผลแล้ว
+} else {
+  content.innerHTML = `
+    <div class="icon empty-state">⚠️</div>
+    <h1 class="empty-state">ไม่พบข้อมูลการส่งเรื่อง</h1>
+    <p class="empty-state">กรุณากลับไปกรอกแบบฟอร์มใหม่</p>
+    <div class="btn-group">
+      <a href="index.html" class="btn btn-primary">📝 ไปหน้าแบบฟอร์ม</a>
+    </div>
+  `;
+}
+</script>
+</body>
+</html>
