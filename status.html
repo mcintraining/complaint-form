@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ตรวจสอบสถานะเรื่องร้องเรียน</title>
+<style>
+  body { font-family: 'Sarabun', 'Segoe UI', sans-serif; background:#f4f6f8; margin:0; padding:20px; }
+  .container { max-width:600px; margin:0 auto; background:#fff; padding:30px; border-radius:10px; box-shadow:0 2px 8px rgba(0,0,0,0.1); }
+  h1 { color:#1a4d8f; font-size:22px; }
+  .search-box { display:flex; gap:10px; margin-top:15px; }
+  input[type=text] { flex:1; padding:10px; border:1px solid #ccc; border-radius:6px; font-size:14px; box-sizing:border-box; }
+  button { background:#1a4d8f; color:#fff; padding:10px 20px; border:none; border-radius:6px; cursor:pointer; font-size:14px; }
+  button:disabled { background:#999; }
+  .result { margin-top:25px; border-top:1px solid #eee; padding-top:20px; display:none; }
+  .row { display:flex; justify-content:space-between; gap:10px; padding:8px 0; border-bottom:1px solid #f0f0f0; font-size:14px; }
+  .row .label { font-weight:600; color:#555; white-space:nowrap; }
+  .row .value { text-align:right; }
+  .status-badge { padding:4px 12px; border-radius:20px; font-size:13px; color:#fff; }
+  .status-done { background:#28a745; }
+  .status-pending { background:#f0ad4e; }
+  .error-msg { color:#c62828; margin-top:15px; font-size:14px; }
+  .link-back { display:block; text-align:center; margin-top:20px; color:#1a4d8f; text-decoration:none; font-size:14px; }
+</style>
+</head>
+<body>
+<div class="container">
+  <h1>🔍 ตรวจสอบสถานะเรื่องร้องเรียน</h1>
+  <p>กรอกรหัสเรื่องร้องเรียนของท่าน (เช่น 001) เพื่อตรวจสอบสถานะ</p>
+
+  <div class="search-box">
+    <input type="text" id="complaintId" placeholder="รหัสเรื่องร้องเรียน">
+    <button onclick="checkStatus()" id="checkBtn">ตรวจสอบ</button>
+  </div>
+
+  <div id="errorMsg" class="error-msg"></div>
+
+  <div class="result" id="resultBox">
+    <div class="row"><span class="label">รหัสเรื่องร้องเรียน</span><span class="value" id="rComplaintId"></span></div>
+    <div class="row"><span class="label">วัน-เวลาที่ส่งเรื่อง</span><span class="value" id="rTimestamp"></span></div>
+    <div class="row"><span class="label">หัวข้อเรื่อง</span><span class="value" id="rSubject"></span></div>
+    <div class="row"><span class="label">สถานะดำเนินการ</span><span class="value" id="rStatus"></span></div>
+    <div class="row"><span class="label">หมายเหตุ</span><span class="value" id="rRemark"></span></div>
+    <div class="row"><span class="label">ติดต่อสอบถาม</span><span class="value" id="rContact"></span></div>
+  </div>
+
+  <a href="index.html" class="link-back">⬅ กลับไปหน้าแบบฟอร์ม</a>
+</div>
+
+<script>
+// ⚠️⚠️⚠️ แก้บรรทัดด้านล่างนี้เป็น Web App URL ของคุณ (URL เดียวกับใน index.html) ⚠️⚠️⚠️
+const WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbyUgK7n-9DyYAz6cHgsqmf5FpgNIfr_zWPCBS3vrymDoGBhg6QV79-H8UCn9YrdORFoKA/exec'; // wep app จาก app script ver.19Aug2026
+
+async function checkStatus() {
+  const id = document.getElementById('complaintId').value.trim();
+  const errorMsg = document.getElementById('errorMsg');
+  const resultBox = document.getElementById('resultBox');
+  const btn = document.getElementById('checkBtn');
+  errorMsg.textContent = '';
+  resultBox.style.display = 'none';
+
+  if (!id) { errorMsg.textContent = 'กรุณากรอกรหัสเรื่องร้องเรียน'; return; }
+
+  btn.disabled = true; btn.textContent = 'กำลังค้นหา...';
+
+  try {
+    const res = await fetch(WEB_APP_URL + '?id=' + encodeURIComponent(id));
+    const data = await res.json();
+
+    if (data.status === 'found') {
+      document.getElementById('rComplaintId').textContent = data.complaintId;
+      document.getElementById('rTimestamp').textContent = data.timestamp;
+      document.getElementById('rSubject').textContent = data.subject;
+      document.getElementById('rRemark').textContent = data.remark;
+      document.getElementById('rContact').textContent = data.contactEmail;
+
+      const statusEl = document.getElementById('rStatus');
+      const isDone = data.statusValue.includes('เสร็จสิ้น');
+      statusEl.innerHTML = '<span class="status-badge ' + (isDone ? 'status-done' : 'status-pending') + '">' + data.statusValue + '</span>';
+
+      resultBox.style.display = 'block';
+    } else {
+      errorMsg.textContent = 'ไม่พบข้อมูลรหัสเรื่องร้องเรียนนี้ กรุณาตรวจสอบรหัสอีกครั้ง';
+    }
+  } catch (err) {
+    errorMsg.textContent = 'เกิดข้อผิดพลาดในการตรวจสอบ: ' + err.message;
+  } finally {
+    btn.disabled = false; btn.textContent = 'ตรวจสอบ';
+  }
+}
+
+// กด Enter ในช่อง input ก็ค้นหาได้เลย
+document.getElementById('complaintId').addEventListener('keypress', function(e) {
+  if (e.key === 'Enter') checkStatus();
+});
+</script>
+</body>
+</html>
