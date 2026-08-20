@@ -166,32 +166,43 @@
     });
   }
 
-  async function collectAllFiles() {
-    var ids = ['file1', 'file2', 'file3'];
-    var result = [];
+ async function collectAllFiles() {
+  var ids = ['file1', 'file2', 'file3'];
+  var result = [];
+  var failedFiles = [];
 
-    for (var i = 0; i < ids.length; i++) {
-      var input = document.getElementById(ids[i]);
+  for (var i = 0; i < ids.length; i++) {
+    var input = document.getElementById(ids[i]);
 
-      if (input === null) {
-        continue; // ช่องนี้ไม่มีอยู่ในหน้าเว็บ ข้ามไป
-      }
-      if (input.files === null || input.files.length === 0) {
-        continue; // ช่องนี้ไม่มีไฟล์ ข้ามไป
-      }
+    if (input === null) {
+      continue;
+    }
+    if (input.files === null || input.files.length === 0) {
+      continue;
+    }
 
-      var file = input.files;
+    var file = input.files;
+
+    // ตรวจสอบว่าเป็นไฟล์จริงก่อน ถ้าไม่ใช่ให้ข้ามแต่บันทึกชื่อไว้แจ้งผู้ใช้
+    if (!(file instanceof Blob) || typeof file.name === 'undefined') {
+      failedFiles.push('ไฟล์ที่ ' + (i + 1));
+      continue;
+    }
+
+    try {
       var base64 = await readFileAsBase64(file);
-
       result.push({
         name: file.name,
         mimeType: file.type || 'application/octet-stream',
         base64: base64
       });
+    } catch (err) {
+      failedFiles.push('ไฟล์ที่ ' + (i + 1) + ' (' + file.name + ')');
     }
-
-    return result;
   }
+
+  return { files: result, failedFiles: failedFiles };
+}
 
   document.getElementById('complaintForm').addEventListener('submit', async function (e) {
     e.preventDefault();
@@ -216,7 +227,18 @@
     btn.textContent = 'กำลังส่ง...';
 
     try {
-      var fileData = await collectAllFiles();
+            var collected = await collectAllFiles();
+      var fileData = collected.files;
+
+      if (collected.failedFiles.length > 0) {
+        var warningText = '⚠️ ไม่สามารถแนบไฟล์ต่อไปนี้ได้: ' + collected.failedFiles.join(', ') +
+          ' (อาจเกิดจากนโยบายความปลอดภัยของเครื่อง/เครือข่ายที่ใช้งานอยู่ กรุณาลองใช้อุปกรณ์อื่น หรือติดต่อทีมงานหากต้องการส่งไฟล์แนบ) ข้อมูลอื่นๆ จะถูกส่งต่อไปตามปกติ';
+        if (!confirm(warningText + '\n\nกด OK เพื่อส่งข้อมูลต่อโดยไม่มีไฟล์ที่มีปัญหา หรือ Cancel เพื่อยกเลิก')) {
+          btn.disabled = false;
+          btn.textContent = 'ส่งเรื่องร้องเรียน';
+          return;
+        }
+      }
 
       var payload = {
         fullname: document.getElementById('fullname').value.trim(),
