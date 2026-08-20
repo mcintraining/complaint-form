@@ -18,13 +18,12 @@
   .hint { font-size:12px; color:#666; margin-top:6px; }
   button { margin-top:25px; background:#1a4d8f; color:#fff; padding:12px 25px; border:none; border-radius:6px; font-size:16px; cursor:pointer; }
   button:disabled { background:#999; }
-  #msg { margin-top:15px; padding:12px; border-radius:6px; display:none; }
-  #msg.success { background:#e6f4ea; color:#1e7e34; display:block; }
-  #msg.error { background:#fdecea; color:#c62828; display:block; }
+  #msg { margin-top:15px; padding:12px; border-radius:6px; }
+  #msg.success { background:#e6f4ea; color:#1e7e34; }
+  #msg.error { background:#fdecea; color:#c62828; }
   #otherTypeBox { display:none; }
   .link-to-status { display:block; text-align:center; margin-top:20px; color:#1a4d8f; text-decoration:none; font-size:14px; }
 
-  /* ===== ส่วนของช่องแนบไฟล์ 3 ช่อง ===== */
   .file-slot { display:flex; align-items:center; gap:10px; margin-top:8px; padding:10px; border:1px dashed #ccc; border-radius:6px; }
   .file-slot input[type=file] { flex:1; font-size:13px; margin:0; padding:0; }
   .file-slot-label { font-size:13px; color:#888; min-width:60px; }
@@ -111,116 +110,150 @@
 </div>
 
 <script>
-// ⚠️⚠️⚠️ แก้บรรทัดด้านล่างนี้เป็น Web App URL ของคุณ ⚠️⚠️⚠️
-const WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbyUgK7n-9DyYAz6cHgsqmf5FpgNIfr_zWPCBS3vrymDoGBhg6QV79-H8UCn9YrdORFoKA/exec'; // app script 19Aug2026 v.2
+  // ⚠️⚠️⚠️ แก้บรรทัดด้านล่างนี้เป็น Web App URL ของคุณ ⚠️⚠️⚠️
+  var WEB_APP_URL = 'https://script.google.com/macros/s/YOUR_DEPLOYMENT_ID/exec';
+  var MAX_FILE_SIZE_MB = 8;
 
-const MAX_FILE_SIZE_MB = 8;
-const fileInputIds = ['file1', 'file2', 'file3'];
+  function showFileName(inputId, nameBoxId, errorBoxId) {
+    var input = document.getElementById(inputId);
+    var nameBox = document.getElementById(nameBoxId);
+    var errorBox = document.getElementById(errorBoxId);
 
-document.getElementById('complaintType').addEventListener('change', function () {
-  document.getElementById('otherTypeBox').style.display = this.value === 'อื่นๆ' ? 'block' : 'none';
-});
+    input.addEventListener('change', function () {
+      nameBox.textContent = '';
+      errorBox.textContent = '';
 
-// เช็คขนาดไฟล์และแสดงชื่อไฟล์ทันทีที่เลือก สำหรับแต่ละช่อง
-fileInputIds.forEach(function (id) {
-  document.getElementById(id).addEventListener('change', function () {
-    const nameBox = document.getElementById(id + 'Name');
-    const errorBox = document.getElementById(id + 'Error');
-    nameBox.textContent = '';
-    errorBox.textContent = '';
+      if (input.files.length === 0) {
+        return;
+      }
 
-    if (this.files.length > 0) {
-      const f = this.files;
-      const sizeMB = f.size / (1024 * 1024);
+      var f = input.files;
+      var sizeMB = f.size / (1024 * 1024);
+
       if (sizeMB > MAX_FILE_SIZE_MB) {
-        errorBox.textContent = '❌ ไฟล์ "' + f.name + '" มีขนาด ' + sizeMB.toFixed(1) + ' MB เกินกำหนด ' + MAX_FILE_SIZE_MB + ' MB กรุณาเลือกไฟล์อื่น';
-        this.value = ''; // ล้างไฟล์ที่เลือกไว้ทิ้ง
+        errorBox.textContent = 'ไฟล์ "' + f.name + '" ขนาด ' + sizeMB.toFixed(1) + ' MB เกินกำหนด ' + MAX_FILE_SIZE_MB + ' MB';
+        input.value = '';
       } else {
-        nameBox.textContent = '📎 ' + f.name + ' (' + sizeMB.toFixed(2) + ' MB)';
+        nameBox.textContent = 'แนบไฟล์: ' + f.name + ' (' + sizeMB.toFixed(2) + ' MB)';
       }
-    }
-  });
-});
-
-function fileToBase64(file) {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = () => resolve(reader.result.split(','));
-    reader.onerror = reject;
-    reader.readAsDataURL(file);
-  });
-}
-
-document.getElementById('complaintForm').addEventListener('submit', async function (e) {
-  e.preventDefault();
-  const msg = document.getElementById('msg');
-  const btn = document.getElementById('submitBtn');
-
-  // ⚠️ แก้บั๊กจากเดิม: ไม่ตั้ง inline style display:none แล้ว ให้ล้างแค่ class พอ
-  msg.className = '';
-  msg.textContent = '';
-
-  let complaintType = document.getElementById('complaintType').value;
-  if (complaintType === 'อื่นๆ') {
-    const other = document.getElementById('otherType').value.trim();
-    if (!other) {
-      msg.className = 'error';
-      msg.textContent = 'กรุณาระบุประเภทการร้องเรียน';
-      return;
-    }
-    complaintType = 'อื่นๆ: ' + other;
-  }
-
-  btn.disabled = true;
-  btn.textContent = 'กำลังส่ง...';
-
-  try {
-    // รวบรวมไฟล์จากทั้ง 3 ช่อง (เฉพาะช่องที่มีไฟล์)
-    const fileData = [];
-    for (const id of fileInputIds) {
-      const input = document.getElementById(id);
-      if (input.files.length > 0) {
-        const f = input.files;
-        const base64 = await fileToBase64(f);
-        fileData.push({ name: f.name, mimeType: f.type, base64: base64 });
-      }
-    }
-
-    const payload = {
-      fullname: document.getElementById('fullname').value.trim(),
-      email: document.getElementById('email').value.trim(),
-      phone: document.getElementById('phone').value.trim(),
-      reporterStatus: document.getElementById('reporterStatus').value,
-      complaintType: complaintType,
-      subject: document.getElementById('subject').value.trim(),
-      details: document.getElementById('details').value.trim(),
-      additional: document.getElementById('additional').value.trim(),
-      files: fileData
-    };
-
-    const res = await fetch(WEB_APP_URL, {
-      method: 'POST',
-      body: JSON.stringify(payload)
     });
-
-    const result = await res.json();
-
-    if (result.status === 'success') {
-      // เก็บ complaintId ไว้ใน sessionStorage แล้ว redirect ไปหน้า thank-you
-      sessionStorage.setItem('lastComplaintId', result.complaintId);
-      window.location.href = 'thankyou.html';
-    } else {
-      msg.className = 'error';
-      msg.textContent = '❌ เกิดข้อผิดพลาด: ' + result.message;
-    }
-  } catch (err) {
-    msg.className = 'error';
-    msg.textContent = '❌ ไม่สามารถส่งข้อมูลได้: ' + err.message;
-  } finally {
-    btn.disabled = false;
-    btn.textContent = 'ส่งเรื่องร้องเรียน';
   }
-});
+
+  showFileName('file1', 'file1Name', 'file1Error');
+  showFileName('file2', 'file2Name', 'file2Error');
+  showFileName('file3', 'file3Name', 'file3Error');
+
+  document.getElementById('complaintType').addEventListener('change', function () {
+    document.getElementById('otherTypeBox').style.display = (this.value === 'อื่นๆ') ? 'block' : 'none';
+  });
+
+  function readFileAsBase64(file) {
+    return new Promise(function (resolve, reject) {
+      if (!file) {
+        reject(new Error('ไม่พบไฟล์ที่จะอ่าน'));
+        return;
+      }
+      var reader = new FileReader();
+      reader.onload = function () {
+        var result = reader.result; // เช่น "data:application/pdf;base64,JVBERi0x..."
+        var base64Only = result.substring(result.indexOf(',') + 1);
+        resolve(base64Only);
+      };
+      reader.onerror = function () {
+        reject(new Error('อ่านไฟล์ "' + file.name + '" ไม่สำเร็จ'));
+      };
+      reader.readAsDataURL(file);
+    });
+  }
+
+  async function collectAllFiles() {
+    var ids = ['file1', 'file2', 'file3'];
+    var result = [];
+
+    for (var i = 0; i < ids.length; i++) {
+      var input = document.getElementById(ids[i]);
+
+      if (input === null) {
+        continue; // ช่องนี้ไม่มีอยู่ในหน้าเว็บ ข้ามไป
+      }
+      if (input.files === null || input.files.length === 0) {
+        continue; // ช่องนี้ไม่มีไฟล์ ข้ามไป
+      }
+
+      var file = input.files;
+      var base64 = await readFileAsBase64(file);
+
+      result.push({
+        name: file.name,
+        mimeType: file.type || 'application/octet-stream',
+        base64: base64
+      });
+    }
+
+    return result;
+  }
+
+  document.getElementById('complaintForm').addEventListener('submit', async function (e) {
+    e.preventDefault();
+
+    var msg = document.getElementById('msg');
+    var btn = document.getElementById('submitBtn');
+    msg.className = '';
+    msg.textContent = '';
+
+    var complaintType = document.getElementById('complaintType').value;
+    if (complaintType === 'อื่นๆ') {
+      var other = document.getElementById('otherType').value.trim();
+      if (!other) {
+        msg.className = 'error';
+        msg.textContent = 'กรุณาระบุประเภทการร้องเรียน';
+        return;
+      }
+      complaintType = 'อื่นๆ: ' + other;
+    }
+
+    btn.disabled = true;
+    btn.textContent = 'กำลังส่ง...';
+
+    try {
+      var fileData = await collectAllFiles();
+
+      var payload = {
+        fullname: document.getElementById('fullname').value.trim(),
+        email: document.getElementById('email').value.trim(),
+        phone: document.getElementById('phone').value.trim(),
+        reporterStatus: document.getElementById('reporterStatus').value,
+        complaintType: complaintType,
+        subject: document.getElementById('subject').value.trim(),
+        details: document.getElementById('details').value.trim(),
+        additional: document.getElementById('additional').value.trim(),
+        files: fileData
+      };
+
+      var res = await fetch(WEB_APP_URL, {
+        method: 'POST',
+        body: JSON.stringify(payload)
+      });
+
+      var result = await res.json();
+
+      if (result.status === 'success') {
+        sessionStorage.setItem('lastComplaintId', result.complaintId);
+        window.location.href = 'thankyou.html';
+      } else {
+        msg.className = 'error';
+        msg.textContent = 'เกิดข้อผิดพลาด: ' + result.message;
+      }
+
+    } catch (err) {
+      msg.className = 'error';
+      msg.textContent = 'ไม่สามารถส่งข้อมูลได้: ' + err.message;
+      console.error('Submit error:', err);
+    } finally {
+      btn.disabled = false;
+      btn.textContent = 'ส่งเรื่องร้องเรียน';
+    }
+  });
 </script>
 </body>
 </html>
