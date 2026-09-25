@@ -129,13 +129,22 @@
 
     var f = input.files;
 
+       // ⚠️ log ค่าจริงทันที ก่อนเช็คเงื่อนไขใดๆ ทั้งสิ้น
+    console.log('===== ตรวจสอบไฟล์ที่เลือกจริง (' + inputId + ') =====');
+    console.log('f:', f);
+    console.log('f.name:', f.name);
+    console.log('f.size:', f.size);
+    console.log('f.type:', f.type);
+    console.log('typeof f.slice:', typeof f.slice);
+    console.log('=========================================');
+
     // เช็คแบบไม่พึ่งการเทียบ string literal เลย ป้องกันปัญหาเครื่องหมายคำพูดผิดเพี้ยน
     var hasValidName = Boolean(f) && Boolean(f.name) && f.name.length > 0;
     var hasValidSize = Boolean(f) && f.size >= 0;
 
     if (!hasValidName || !hasValidSize) {
       errorBox.textContent = 'ไม่สามารถอ่านไฟล์นี้ได้ กรุณาลองเลือกไฟล์ใหม่อีกครั้ง';
-      input.value = '';
+      // input.value = ''; <<--- เดี๋ยวมาเอาออก
       return;
     }
 
