@@ -114,104 +114,77 @@
   var WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbyUgK7n-9DyYAz6cHgsqmf5FpgNIfr_zWPCBS3vrymDoGBhg6QV79-H8UCn9YrdORFoKA/exec';
   var MAX_FILE_SIZE_MB = 8;
 
-  function showFileName(inputId, nameBoxId, errorBoxId) {
-    var input = document.getElementById(inputId);
-    var nameBox = document.getElementById(nameBoxId);
-    var errorBox = document.getElementById(errorBoxId);
+ function showFileName(inputId, nameBoxId, errorBoxId) {
+  var input = document.getElementById(inputId);
+  var nameBox = document.getElementById(nameBoxId);
+  var errorBox = document.getElementById(errorBoxId);
 
-    input.addEventListener('change', function () {
-      nameBox.textContent = '';
-      errorBox.textContent = '';
+  input.addEventListener('change', function () {
+    nameBox.textContent = '';
+    errorBox.textContent = '';
 
-      if (input.files.length === 0) {
-        return;
-      }
+    if (input.files.length === 0) {
+      return;
+    }
 
-      var f = input.files;
+    var f = input.files;
 
-      // ป้องกัน error ถ้า browser/เครื่องนี้ให้ค่า file ที่ไม่สมบูรณ์ (name/size เป็น undefined)
-      var hasValidName = f && typeof f.name === 'string' && f.name.length > 0;
-      var hasValidSize = f && typeof f.size === 'number' && !isNaN(f.size);
+    // เช็คแบบไม่พึ่งการเทียบ string literal เลย ป้องกันปัญหาเครื่องหมายคำพูดผิดเพี้ยน
+    var hasValidName = Boolean(f) && Boolean(f.name) && f.name.length > 0;
+    var hasValidSize = Boolean(f) && f.size >= 0;
 
-      if (!hasValidName || !hasValidSize) {
-        errorBox.textContent = 'เครื่อง/เบราว์เซอร์นี้ไม่สามารถอ่านไฟล์นี้ได้ปกติ กรุณาลองเลือกไฟล์ใหม่ หรือใช้เครื่อง/เบราว์เซอร์อื่น';
-        input.value = '';
-        return;
-      }
+    if (!hasValidName || !hasValidSize) {
+      errorBox.textContent = 'ไม่สามารถอ่านไฟล์นี้ได้ กรุณาลองเลือกไฟล์ใหม่อีกครั้ง';
+      input.value = '';
+      return;
+    }
 
-      var sizeMB = f.size / (1024 * 1024);
+    var sizeMB = f.size / (1024 * 1024);
 
-      if (sizeMB > MAX_FILE_SIZE_MB) {
-        errorBox.textContent = 'ไฟล์ "' + f.name + '" ขนาด ' + sizeMB.toFixed(1) + ' MB เกินกำหนด ' + MAX_FILE_SIZE_MB + ' MB';
-        input.value = '';
-      } else {
-        nameBox.textContent = 'แนบไฟล์: ' + f.name + ' (' + sizeMB.toFixed(2) + ' MB)';
-      }
-    });
-  }
-
-  showFileName('file1', 'file1Name', 'file1Error');
-  showFileName('file2', 'file2Name', 'file2Error');
-  showFileName('file3', 'file3Name', 'file3Error');
-
-  document.getElementById('complaintType').addEventListener('change', function () {
-    document.getElementById('otherTypeBox').style.display = (this.value === 'อื่นๆ') ? 'block' : 'none';
+    if (sizeMB > MAX_FILE_SIZE_MB) {
+      errorBox.textContent = 'ไฟล์ "' + f.name + '" ขนาด ' + sizeMB.toFixed(1) + ' MB เกินกำหนด ' + MAX_FILE_SIZE_MB + ' MB';
+      input.value = '';
+    } else {
+      nameBox.textContent = 'แนบไฟล์: ' + f.name + ' (' + sizeMB.toFixed(2) + ' MB)';
+    }
   });
-
-  function readFileAsBase64(file) {
-    return new Promise(function (resolve, reject) {
-      if (!file || !(file instanceof Blob)) {
-        reject(new Error('ไม่ใช่ไฟล์ที่อ่านได้'));
-        return;
-      }
-      var reader = new FileReader();
-      reader.onload = function () {
-        var result = reader.result;
-        var base64Only = result.substring(result.indexOf(',') + 1);
-        resolve(base64Only);
-      };
-      reader.onerror = function () {
-        reject(new Error('อ่านไฟล์ไม่สำเร็จ'));
-      };
-      reader.readAsDataURL(file);
-    });
-  }
+}
 
   // รวบรวมไฟล์จากทั้ง 3 ช่อง แบบไม่ทำให้ทั้งฟอร์ม error ถ้าไฟล์ใดไฟล์หนึ่งมีปัญหา
   async function collectAllFiles() {
-    var ids = ['file1', 'file2', 'file3'];
-    var result = [];
-    var failedSlots = [];
+  var ids = ['file1', 'file2', 'file3'];
+  var result = [];
+  var failedSlots = [];
 
-    for (var i = 0; i < ids.length; i++) {
-      var input = document.getElementById(ids[i]);
-      if (input === null) { continue; }
-      if (input.files === null || input.files.length === 0) { continue; }
+  for (var i = 0; i < ids.length; i++) {
+    var input = document.getElementById(ids[i]);
+    if (input === null) { continue; }
+    if (input.files === null || input.files.length === 0) { continue; }
 
-      var file = input.files;
+    var file = input.files;
 
-      var hasValidName = file && typeof file.name === 'string' && file.name.length > 0;
-      var isBlob = file instanceof Blob;
+    var hasValidName = Boolean(file) && Boolean(file.name) && file.name.length > 0;
+    var isBlob = file && Boolean(file.slice); // เช็คว่ามีเมธอด .slice ซึ่งเป็นของ Blob/File เท่านั้น
 
-      if (!isBlob || !hasValidName) {
-        failedSlots.push('ไฟล์ที่ ' + (i + 1));
-        continue;
-      }
-
-      try {
-        var base64 = await readFileAsBase64(file);
-        result.push({
-          name: file.name,
-          mimeType: file.type || 'application/octet-stream',
-          base64: base64
-        });
-      } catch (err) {
-        failedSlots.push('ไฟล์ที่ ' + (i + 1) + ' (' + file.name + ')');
-      }
+    if (!isBlob || !hasValidName) {
+      failedSlots.push('ไฟล์ที่ ' + (i + 1));
+      continue;
     }
 
-    return { files: result, failedSlots: failedSlots };
+    try {
+      var base64 = await readFileAsBase64(file);
+      result.push({
+        name: file.name,
+        mimeType: file.type || 'application/octet-stream',
+        base64: base64
+      });
+    } catch (err) {
+      failedSlots.push('ไฟล์ที่ ' + (i + 1) + ' (' + file.name + ')');
+    }
   }
+
+  return { files: result, failedSlots: failedSlots };
+}
 
   document.getElementById('complaintForm').addEventListener('submit', async function (e) {
     e.preventDefault();
