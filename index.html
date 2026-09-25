@@ -110,8 +110,8 @@
 </div>
 
 <script>
-  // ⚠️⚠️⚠️ แก้บรรทัดด้านล่างนี้เป็น Web App URL ของคุณ ⚠️⚠️⚠️
-  var WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbyUgK7n-9DyYAz6cHgsqmf5FpgNIfr_zWPCBS3vrymDoGBhg6QV79-H8UCn9YrdORFoKA/exec'; // web app url 20 aug 2026
+  // ⚠️⚠️⚠️ Web App URL ⚠️⚠️⚠️
+  var WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbyUgK7n-9DyYAz6cHgsqmf5FpgNIfr_zWPCBS3vrymDoGBhg6QV79-H8UCn9YrdORFoKA/exec';
   var MAX_FILE_SIZE_MB = 8;
 
   function showFileName(inputId, nameBoxId, errorBoxId) {
@@ -128,6 +128,17 @@
       }
 
       var f = input.files;
+
+      // ป้องกัน error ถ้า browser/เครื่องนี้ให้ค่า file ที่ไม่สมบูรณ์ (name/size เป็น undefined)
+      var hasValidName = f && typeof f.name === 'string' && f.name.length > 0;
+      var hasValidSize = f && typeof f.size === 'number' && !isNaN(f.size);
+
+      if (!hasValidName || !hasValidSize) {
+        errorBox.textContent = 'เครื่อง/เบราว์เซอร์นี้ไม่สามารถอ่านไฟล์นี้ได้ปกติ กรุณาลองเลือกไฟล์ใหม่ หรือใช้เครื่อง/เบราว์เซอร์อื่น';
+        input.value = '';
+        return;
+      }
+
       var sizeMB = f.size / (1024 * 1024);
 
       if (sizeMB > MAX_FILE_SIZE_MB) {
@@ -149,60 +160,58 @@
 
   function readFileAsBase64(file) {
     return new Promise(function (resolve, reject) {
-      if (!file) {
-        reject(new Error('ไม่พบไฟล์ที่จะอ่าน'));
+      if (!file || !(file instanceof Blob)) {
+        reject(new Error('ไม่ใช่ไฟล์ที่อ่านได้'));
         return;
       }
       var reader = new FileReader();
       reader.onload = function () {
-        var result = reader.result; // เช่น "data:application/pdf;base64,JVBERi0x..."
+        var result = reader.result;
         var base64Only = result.substring(result.indexOf(',') + 1);
         resolve(base64Only);
       };
       reader.onerror = function () {
-        reject(new Error('อ่านไฟล์ "' + file.name + '" ไม่สำเร็จ'));
+        reject(new Error('อ่านไฟล์ไม่สำเร็จ'));
       };
       reader.readAsDataURL(file);
     });
   }
 
- async function collectAllFiles() {
-  var ids = ['file1', 'file2', 'file3'];
-  var result = [];
-  var failedFiles = [];
+  // รวบรวมไฟล์จากทั้ง 3 ช่อง แบบไม่ทำให้ทั้งฟอร์ม error ถ้าไฟล์ใดไฟล์หนึ่งมีปัญหา
+  async function collectAllFiles() {
+    var ids = ['file1', 'file2', 'file3'];
+    var result = [];
+    var failedSlots = [];
 
-  for (var i = 0; i < ids.length; i++) {
-    var input = document.getElementById(ids[i]);
+    for (var i = 0; i < ids.length; i++) {
+      var input = document.getElementById(ids[i]);
+      if (input === null) { continue; }
+      if (input.files === null || input.files.length === 0) { continue; }
 
-    if (input === null) {
-      continue;
+      var file = input.files;
+
+      var hasValidName = file && typeof file.name === 'string' && file.name.length > 0;
+      var isBlob = file instanceof Blob;
+
+      if (!isBlob || !hasValidName) {
+        failedSlots.push('ไฟล์ที่ ' + (i + 1));
+        continue;
+      }
+
+      try {
+        var base64 = await readFileAsBase64(file);
+        result.push({
+          name: file.name,
+          mimeType: file.type || 'application/octet-stream',
+          base64: base64
+        });
+      } catch (err) {
+        failedSlots.push('ไฟล์ที่ ' + (i + 1) + ' (' + file.name + ')');
+      }
     }
-    if (input.files === null || input.files.length === 0) {
-      continue;
-    }
 
-    var file = input.files;
-
-    // ตรวจสอบว่าเป็นไฟล์จริงก่อน ถ้าไม่ใช่ให้ข้ามแต่บันทึกชื่อไว้แจ้งผู้ใช้
-    if (!(file instanceof Blob) || typeof file.name === 'undefined') {
-      failedFiles.push('ไฟล์ที่ ' + (i + 1));
-      continue;
-    }
-
-    try {
-      var base64 = await readFileAsBase64(file);
-      result.push({
-        name: file.name,
-        mimeType: file.type || 'application/octet-stream',
-        base64: base64
-      });
-    } catch (err) {
-      failedFiles.push('ไฟล์ที่ ' + (i + 1) + ' (' + file.name + ')');
-    }
+    return { files: result, failedSlots: failedSlots };
   }
-
-  return { files: result, failedFiles: failedFiles };
-}
 
   document.getElementById('complaintForm').addEventListener('submit', async function (e) {
     e.preventDefault();
@@ -227,13 +236,18 @@
     btn.textContent = 'กำลังส่ง...';
 
     try {
-            var collected = await collectAllFiles();
+      var collected = await collectAllFiles();
       var fileData = collected.files;
 
-      if (collected.failedFiles.length > 0) {
-        var warningText = '⚠️ ไม่สามารถแนบไฟล์ต่อไปนี้ได้: ' + collected.failedFiles.join(', ') +
-          ' (อาจเกิดจากนโยบายความปลอดภัยของเครื่อง/เครือข่ายที่ใช้งานอยู่ กรุณาลองใช้อุปกรณ์อื่น หรือติดต่อทีมงานหากต้องการส่งไฟล์แนบ) ข้อมูลอื่นๆ จะถูกส่งต่อไปตามปกติ';
-        if (!confirm(warningText + '\n\nกด OK เพื่อส่งข้อมูลต่อโดยไม่มีไฟล์ที่มีปัญหา หรือ Cancel เพื่อยกเลิก')) {
+      // ถ้ามีไฟล์ที่แนบไม่สำเร็จ ถามผู้ใช้ก่อนว่าจะส่งข้อมูลต่อโดยไม่มีไฟล์นั้นไหม
+      if (collected.failedSlots.length > 0) {
+        var warningText =
+          'ไม่สามารถแนบไฟล์ต่อไปนี้ได้: ' + collected.failedSlots.join(', ') +
+          '\n\nอาจเกิดจากข้อจำกัดของเครื่อง/เบราว์เซอร์ที่ใช้งานอยู่\n\n' +
+          'กด OK เพื่อส่งข้อมูลต่อโดยไม่มีไฟล์ที่มีปัญหา\nกด Cancel เพื่อยกเลิกแล้วลองแนบไฟล์ใหม่';
+
+        var proceed = confirm(warningText);
+        if (!proceed) {
           btn.disabled = false;
           btn.textContent = 'ส่งเรื่องร้องเรียน';
           return;
